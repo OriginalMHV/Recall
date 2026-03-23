@@ -1,5 +1,38 @@
 use crate::session::{Session, delete_session, human_time_ago};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProviderFilter {
+    All,
+    Copilot,
+    Claude,
+}
+
+impl ProviderFilter {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::All => "All",
+            Self::Copilot => "Copilot",
+            Self::Claude => "Claude Code",
+        }
+    }
+
+    fn matches(self, provider: &str) -> bool {
+        match self {
+            Self::All => true,
+            Self::Copilot => provider == "Copilot",
+            Self::Claude => provider == "Claude Code",
+        }
+    }
+
+    fn next(self) -> Self {
+        match self {
+            Self::All => Self::Copilot,
+            Self::Copilot => Self::Claude,
+            Self::Claude => Self::All,
+        }
+    }
+}
+
 pub struct App {
     pub sessions: Vec<Session>,
     pub filtered: Vec<usize>,
@@ -8,6 +41,7 @@ pub struct App {
     pub search_query: String,
     pub search_active: bool,
     pub mode: Mode,
+    pub provider_filter: ProviderFilter,
     pub confirm_delete: bool,
     pub should_quit: bool,
     pub resume_session: Option<String>,
@@ -30,6 +64,7 @@ impl App {
             search_query: String::new(),
             search_active: false,
             mode: Mode::Browse,
+            provider_filter: ProviderFilter::All,
             confirm_delete: false,
             should_quit: false,
             resume_session: None,
@@ -119,24 +154,28 @@ impl App {
         self.apply_filter();
     }
 
-    fn apply_filter(&mut self) {
+    pub fn cycle_provider_filter(&mut self) {
+        self.provider_filter = self.provider_filter.next();
+        self.apply_filter();
+    }
+
+    pub fn apply_filter(&mut self) {
         let query = self.search_query.to_lowercase();
-        self.filtered = if query.is_empty() {
-            (0..self.sessions.len()).collect()
-        } else {
-            self.sessions
-                .iter()
-                .enumerate()
-                .filter(|(_, s)| {
-                    s.summary.to_lowercase().contains(&query)
-                        || s.cwd.to_lowercase().contains(&query)
-                        || s.user_messages
-                            .iter()
-                            .any(|m| m.to_lowercase().contains(&query))
-                })
-                .map(|(i, _)| i)
-                .collect()
-        };
+        self.filtered = self
+            .sessions
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| self.provider_filter.matches(&s.provider))
+            .filter(|(_, s)| {
+                query.is_empty()
+                    || s.summary.to_lowercase().contains(&query)
+                    || s.cwd.to_lowercase().contains(&query)
+                    || s.user_messages
+                        .iter()
+                        .any(|m| m.to_lowercase().contains(&query))
+            })
+            .map(|(i, _)| i)
+            .collect();
 
         if self.selected >= self.filtered.len() {
             self.selected = self.filtered.len().saturating_sub(1);
@@ -156,6 +195,7 @@ impl App {
 
         let created = session.created_at.format("%b %d, %Y %H:%M").to_string();
         let updated = human_time_ago(&session.updated_at);
+        lines.push(PreviewLine::label_value("Provider", &session.provider));
         lines.push(PreviewLine::label_value("Created", &created));
         lines.push(PreviewLine::label_value("Updated", &updated));
         lines.push(PreviewLine::label_value("Directory", &session.cwd));

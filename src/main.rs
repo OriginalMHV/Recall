@@ -1,11 +1,12 @@
 mod app;
+mod providers;
 mod session;
 mod ui;
 
 use std::io;
 use std::time::Duration;
 
-use app::{App, Mode};
+use app::{App, Mode, ProviderFilter};
 use clap::Parser;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{
@@ -16,7 +17,7 @@ use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 
 #[derive(Parser)]
-#[command(name = "recall", about = "TUI session browser for GitHub Copilot CLI")]
+#[command(name = "recall", about = "TUI session browser for AI CLI tools")]
 struct Cli {
     /// List sessions as plain text (no TUI)
     #[arg(long)]
@@ -25,11 +26,20 @@ struct Cli {
     /// Show session count only
     #[arg(long)]
     count: bool,
+
+    /// Filter by provider name (copilot, claude)
+    #[arg(long)]
+    provider: Option<String>,
 }
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let sessions = session::load_all_sessions();
+    let mut sessions = providers::load_all_sessions();
+
+    if let Some(ref filter) = cli.provider {
+        let filter_lower = filter.to_lowercase();
+        sessions.retain(|s| s.provider.to_lowercase().contains(&filter_lower));
+    }
 
     if cli.count {
         println!("{}", sessions.len());
@@ -41,9 +51,10 @@ fn main() -> anyhow::Result<()> {
             let age = session::human_time_ago(&s.updated_at);
             let msgs = s.user_messages.len();
             let cps = s.checkpoints.len();
+            let id_short = if s.id.len() >= 8 { &s.id[..8] } else { &s.id };
             println!(
-                "{} | {} | {age} | {msgs} msgs | {cps} checkpoints",
-                &s.id[..8],
+                "{id_short} | {} | {} | {age} | {msgs} msgs | {cps} checkpoints",
+                s.provider,
                 if s.summary.is_empty() {
                     "(untitled)"
                 } else {
@@ -55,12 +66,23 @@ fn main() -> anyhow::Result<()> {
     }
 
     if sessions.is_empty() {
-        println!("No Copilot CLI sessions found.");
-        println!("Sessions are stored in ~/.copilot/session-state/");
+        println!("No AI CLI sessions found.");
+        println!("Supported: ~/.copilot/session-state/ (Copilot), ~/.claude/projects/ (Claude Code)");
         return Ok(());
     }
 
-    let resume_id = run_tui(sessions)?;
+    let provider_filter = cli.provider.as_deref().map(|p| {
+        let lower = p.to_lowercase();
+        if lower.contains("claude") {
+            ProviderFilter::Claude
+        } else if lower.contains("copilot") {
+            ProviderFilter::Copilot
+        } else {
+            ProviderFilter::All
+        }
+    });
+
+    let resume_id = run_tui(sessions, provider_filter)?;
 
     if let Some(session_id) = resume_id {
         println!("Resuming session: {session_id}");
@@ -73,13 +95,21 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_tui(sessions: Vec<session::Session>) -> anyhow::Result<Option<String>> {
+fn run_tui(
+    sessions: Vec<session::Session>,
+    provider_filter: Option<ProviderFilter>,
+) -> anyhow::Result<Option<String>> {
     enable_raw_mode()?;
     io::stdout().execute(EnterAlternateScreen)?;
 
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
     let mut app = App::new(sessions);
+
+    if let Some(filter) = provider_filter {
+        app.provider_filter = filter;
+        app.apply_filter();
+    }
 
     loop {
         terminal.draw(|f| ui::draw(f, &app))?;
@@ -137,6 +167,7 @@ fn handle_browse_key(app: &mut App, key: KeyEvent) {
         KeyCode::Enter => app.resume_selected(),
         KeyCode::Char('d') => app.delete_selected(),
         KeyCode::Char('/') => app.enter_search(),
+        KeyCode::Tab => app.cycle_provider_filter(),
         KeyCode::Left => app.scroll_preview_up(),
         KeyCode::Right => app.scroll_preview_down(),
         KeyCode::Home | KeyCode::Char('g') => {

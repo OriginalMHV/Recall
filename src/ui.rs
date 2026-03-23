@@ -12,6 +12,7 @@ use crate::session::human_time_ago;
 const OLIVE: Color = Color::Rgb(107, 142, 35);
 const BURNT: Color = Color::Rgb(204, 85, 0);
 const GOLD: Color = Color::Rgb(218, 165, 32);
+const CLAUDE: Color = Color::Rgb(204, 120, 50);
 const DIM: Color = Color::Rgb(120, 120, 120);
 const SURFACE: Color = Color::Rgb(30, 30, 30);
 
@@ -82,6 +83,17 @@ fn draw_session_list(f: &mut Frame, app: &App, area: Rect) {
 
             let is_selected = display_idx == app.selected;
 
+            let provider_color = if session.provider == "Claude Code" {
+                CLAUDE
+            } else {
+                OLIVE
+            };
+            let provider_badge = if session.provider == "Claude Code" {
+                "◆ "
+            } else {
+                "● "
+            };
+
             let title_style = if is_selected {
                 Style::default().fg(GOLD).add_modifier(Modifier::BOLD)
             } else {
@@ -103,7 +115,10 @@ fn draw_session_list(f: &mut Frame, app: &App, area: Rect) {
             };
 
             ListItem::new(vec![
-                Line::from(Span::styled(summary, title_style)),
+                Line::from(vec![
+                    Span::styled(provider_badge, Style::default().fg(provider_color)),
+                    Span::styled(summary, title_style),
+                ]),
                 Line::from(Span::styled(
                     format!("{age} · {cwd}{checkpoints}{messages}"),
                     meta_style,
@@ -180,12 +195,15 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             ("Enter", "resume"),
             ("d", "delete"),
             ("/", "search"),
+            ("Tab", "provider"),
             ("Shift+↑↓", "scroll preview"),
             ("q", "quit"),
         ]
     };
 
-    let spans: Vec<Span> = keys
+    let filter_label = app.provider_filter.label();
+
+    let mut spans: Vec<Span> = keys
         .iter()
         .enumerate()
         .flat_map(|(i, (key, action))| {
@@ -202,6 +220,12 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             s
         })
         .collect();
+
+    spans.push(Span::styled("  ", Style::default()));
+    spans.push(Span::styled(
+        format!(" {filter_label} "),
+        Style::default().fg(Color::Black).bg(DIM),
+    ));
 
     let bar = Paragraph::new(Line::from(spans));
     f.render_widget(bar, area);
