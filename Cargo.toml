@@ -3,9 +3,11 @@ name = "recall-cli"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-description = "TUI session browser for AI CLI tools"
+description = "TUI session browser for AI coding assistants — GitHub Copilot CLI, Claude Code, and more"
 license = "MIT"
 repository = "https://github.com/OriginalMHV/recall"
+homepage = "https://github.com/OriginalMHV/recall"
+readme = "README.md"
 keywords = ["copilot", "claude", "tui", "session", "terminal"]
 categories = ["command-line-utilities"]
 
@@ -23,6 +25,9 @@ ratatui = "0.30"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
+
+[dev-dependencies]
+tempfile = "3"
 
 [profile.release]
 opt-level = 3

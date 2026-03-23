@@ -1,12 +1,6 @@
-mod app;
-mod providers;
-mod session;
-mod ui;
-
 use std::io;
 use std::time::Duration;
 
-use app::{App, Mode, ProviderFilter};
 use clap::Parser;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::terminal::{
@@ -15,6 +9,8 @@ use crossterm::terminal::{
 use crossterm::{ExecutableCommand, execute};
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
+use recall_cli::app::{App, Mode, ProviderFilter};
+use recall_cli::{providers, session, ui};
 
 #[derive(Parser)]
 #[command(name = "recall", about = "TUI session browser for AI CLI tools")]
@@ -67,7 +63,9 @@ fn main() -> anyhow::Result<()> {
 
     if sessions.is_empty() {
         println!("No AI CLI sessions found.");
-        println!("Supported: ~/.copilot/session-state/ (Copilot), ~/.claude/projects/ (Claude Code)");
+        println!(
+            "Supported: ~/.copilot/session-state/ (Copilot), ~/.claude/projects/ (Claude Code)"
+        );
         return Ok(());
     }
 

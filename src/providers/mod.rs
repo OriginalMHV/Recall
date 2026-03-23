@@ -18,12 +18,10 @@ pub fn load_all_sessions() -> Vec<Session> {
         .iter()
         .flat_map(|p| {
             let name = p.name().to_string();
-            p.discover_sessions()
-                .into_iter()
-                .map(move |mut s| {
-                    s.provider = name.clone();
-                    s
-                })
+            p.discover_sessions().into_iter().map(move |mut s| {
+                s.provider = name.clone();
+                s
+            })
         })
         .collect();
 

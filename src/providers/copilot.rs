@@ -30,7 +30,7 @@ impl CopilotProvider {
         dirs::home_dir().map(|h| h.join(".copilot").join("session-state"))
     }
 
-    fn load_session(path: &std::path::Path) -> Option<Session> {
+    pub fn load_session(path: &std::path::Path) -> Option<Session> {
         let workspace_path = path.join("workspace.yaml");
         let content = std::fs::read_to_string(&workspace_path).ok()?;
         let ws: WorkspaceYaml = serde_yaml::from_str(&content).ok()?;

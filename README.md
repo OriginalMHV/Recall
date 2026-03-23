@@ -11,7 +11,7 @@
 
 ## What is Recall?
 
-A TUI session browser for [GitHub Copilot CLI](https://github.com/github/copilot-cli). Browse, search, preview, and resume your past sessions without memorizing UUIDs or scrolling through `/resume`.
+A TUI session browser for AI coding assistants — [GitHub Copilot CLI](https://github.com/github/copilot-cli), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), and more. Browse, search, preview, and resume your past sessions across providers without memorizing UUIDs or scrolling through `/resume`.
 
 Think of it as the conversation sidebar that ChatGPT and Claude have — but for your terminal.
 
@@ -19,6 +19,7 @@ Think of it as the conversation sidebar that ChatGPT and Claude have — but for
 
 | Feature | Description |
 |---------|-------------|
+| **Multi-provider** | Supports Copilot CLI and Claude Code sessions in one unified view |
 | **Session list** | All sessions sorted by last activity, with summary and age |
 | **Live preview** | Checkpoints, user messages, completed tasks — at a glance |
 | **Search** | Fuzzy filter across summaries, directories, and message content |
@@ -26,15 +27,32 @@ Think of it as the conversation sidebar that ChatGPT and Claude have — but for
 | **Delete** | Clean up old sessions with confirmation |
 | **CLI mode** | `--list` and `--count` flags for scripting |
 
+### Supported providers
+
+| Provider | Status | Session location |
+|----------|--------|------------------|
+| GitHub Copilot CLI | ✅ Supported | `~/.copilot/session-state/` |
+| Claude Code | ✅ Supported | `~/.claude/projects/` |
+
 ## Install
 
 ```bash
-# from source
+# Homebrew (macOS/Linux)
+brew tap OriginalMHV/tap
+brew install recall
+
+# Cargo
+cargo install recall-cli
+
+# Shell (macOS/Linux)
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/OriginalMHV/recall/releases/latest/download/recall-cli-installer.sh | sh
+
+# From source
 git clone https://github.com/OriginalMHV/recall.git
 cd recall && cargo install --path .
 ```
 
-Requires Rust >= 1.85 and an existing [Copilot CLI](https://github.com/github/copilot-cli) installation.
+Requires Rust >= 1.85 for building from source.
 
 ## Usage
 
@@ -58,6 +76,7 @@ recall --count
 | `/` | Search sessions |
 | `d` | Delete session (with confirmation) |
 | `Shift+↑↓` / `←` `→` | Scroll preview panel |
+| `Tab` | Cycle provider filter (All → Copilot → Claude → All) |
 | `g` / `G` | Jump to first / last session |
 | `q` / `Esc` | Quit |
 
@@ -71,11 +90,14 @@ recall --count
 
 ## How it works
 
-Recall reads directly from `~/.copilot/session-state/` — the same directory Copilot CLI uses to persist sessions. It parses `workspace.yaml` for metadata (summary, timestamps, working directory) and `events.jsonl` for conversation content (user messages, task completions). Checkpoint history is pulled from `checkpoints/index.md`.
+Recall uses a multi-provider architecture to discover sessions across AI coding assistants:
+
+- **Copilot CLI**: reads from `~/.copilot/session-state/`, parsing `workspace.yaml` for metadata and `events.jsonl` for conversation content. Checkpoint history is pulled from `checkpoints/index.md`.
+- **Claude Code**: reads from `~/.claude/projects/`, parsing JSONL conversation files for session metadata, messages, and tool usage.
 
 Nothing is modified unless you explicitly delete a session. Recall is read-only by default.
 
-When you hit Enter on a session, Recall exits cleanly and launches `copilot --resume <session-id>`, handing control back to the Copilot CLI.
+When you hit Enter on a session, Recall exits cleanly and launches the appropriate CLI tool to resume the session.
 
 ## License
 

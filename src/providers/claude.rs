@@ -13,7 +13,7 @@ impl ClaudeCodeProvider {
         dirs::home_dir().map(|h| h.join(".claude").join("projects"))
     }
 
-    fn load_session(path: &PathBuf) -> Option<Session> {
+    pub fn load_session(path: &std::path::Path) -> Option<Session> {
         let content = std::fs::read_to_string(path).ok()?;
 
         let mut session_id = None;
@@ -41,8 +41,10 @@ impl ClaudeCodeProvider {
 
             if event_type == "user" {
                 if session_id.is_none() {
-                    session_id =
-                        value.get("sessionId").and_then(|v| v.as_str()).map(String::from);
+                    session_id = value
+                        .get("sessionId")
+                        .and_then(|v| v.as_str())
+                        .map(String::from);
                 }
                 if cwd.is_none() {
                     cwd = value.get("cwd").and_then(|v| v.as_str()).map(String::from);
@@ -69,11 +71,8 @@ impl ClaudeCodeProvider {
             return None;
         }
 
-        let id = session_id.or_else(|| {
-            path.file_stem()
-                .and_then(|s| s.to_str())
-                .map(String::from)
-        })?;
+        let id =
+            session_id.or_else(|| path.file_stem().and_then(|s| s.to_str()).map(String::from))?;
 
         let summary = first_user_content
             .map(|s| truncate(&s, 80))
@@ -89,22 +88,12 @@ impl ClaudeCodeProvider {
             checkpoints: Vec::new(),
             user_messages,
             task_summaries: Vec::new(),
-            path: path.clone(),
+            path: path.to_path_buf(),
         })
     }
-}
 
-impl Provider for ClaudeCodeProvider {
-    fn name(&self) -> &str {
-        "Claude Code"
-    }
-
-    fn discover_sessions(&self) -> Vec<Session> {
-        let Some(projects_dir) = Self::projects_dir() else {
-            return Vec::new();
-        };
-
-        let Ok(project_entries) = std::fs::read_dir(&projects_dir) else {
+    pub fn discover_in(projects_dir: &std::path::Path) -> Vec<Session> {
+        let Ok(project_entries) = std::fs::read_dir(projects_dir) else {
             return Vec::new();
         };
 
@@ -137,5 +126,19 @@ impl Provider for ClaudeCodeProvider {
         }
 
         sessions
+    }
+}
+
+impl Provider for ClaudeCodeProvider {
+    fn name(&self) -> &str {
+        "Claude Code"
+    }
+
+    fn discover_sessions(&self) -> Vec<Session> {
+        let Some(projects_dir) = Self::projects_dir() else {
+            return Vec::new();
+        };
+
+        Self::discover_in(&projects_dir)
     }
 }
