@@ -3,10 +3,10 @@ name = "recall-cli"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-description = "TUI session browser for GitHub Copilot CLI"
+description = "TUI session browser for AI CLI tools"
 license = "MIT"
 repository = "https://github.com/OriginalMHV/recall"
-keywords = ["copilot", "tui", "session", "terminal"]
+keywords = ["copilot", "claude", "tui", "session", "terminal"]
 categories = ["command-line-utilities"]
 
 [[bin]]
