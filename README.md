@@ -1,108 +1,91 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:2E4057,50:048A81,100:54C6EB&height=200&text=RECALL&fontSize=80&fontColor=E8F1F2&fontAlignY=35&desc=find%20your%20way%20back.&descAlignY=55&descSize=22&descAlign=50&animation=fadeIn" width="100%" alt="Recall" />
+# recall
 
-[![Rust](https://img.shields.io/badge/Rust-048A81?style=for-the-badge&logo=rust&logoColor=E8F1F2&labelColor=1C1C1C)](https://rust-lang.org)
-[![License](https://img.shields.io/badge/License-MIT-2E4057?style=for-the-badge&labelColor=1C1C1C)](LICENSE)
+**Find your way back.**
+
+[![crates.io](https://img.shields.io/crates/v/recall-cli?style=flat-square&color=048A81)](https://crates.io/crates/recall-cli)
+[![license](https://img.shields.io/crates/l/recall-cli?style=flat-square&color=2E4057)](LICENSE)
+[![ci](https://img.shields.io/github/actions/workflow/status/OriginalMHV/recall/ci.yml?style=flat-square&label=ci)](https://github.com/OriginalMHV/recall/actions)
+
+A terminal session browser for [Copilot CLI](https://github.com/github/copilot-cli), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), and [Codex CLI](https://github.com/openai/codex).
 
 </div>
 
 ---
 
-## What is Recall?
+Browse, search, preview, and resume your past coding sessions from one place.
+No more memorizing UUIDs or scrolling through `/resume`.
 
-A TUI session browser for [GitHub Copilot CLI](https://github.com/github/copilot-cli), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), and [OpenAI Codex CLI](https://github.com/openai/codex). Browse, search, preview, and resume your past sessions without memorizing UUIDs or scrolling through `/resume`.
+## Providers
 
-The conversation sidebar your terminal never had.
-
-### Features
-
-| Feature | Description |
-|---------|-------------|
-| **Multi-provider** | Supports Copilot CLI, Claude Code, and Codex CLI sessions in one unified view |
-| **Session list** | All sessions sorted by last activity, with summary and age |
-| **Live preview** | Checkpoints, user messages, completed tasks at a glance |
-| **Search** | Fuzzy filter across summaries, directories, and message content |
-| **Resume** | Press Enter to launch `copilot --resume <id>` or `codex --resume <id>` directly |
-| **Delete** | Clean up old sessions with confirmation |
-| **CLI mode** | `--list` and `--count` flags for scripting |
-
-### Supported providers
-
-| Provider | Status | Session location |
-|----------|--------|------------------|
-| GitHub Copilot CLI | ✅ Supported | `~/.copilot/session-state/` |
-| Claude Code | ✅ Supported | `~/.claude/projects/` |
-| OpenAI Codex CLI | ✅ Supported | `~/.codex/sessions/` |
+| Provider | Session location |
+|----------|------------------|
+| GitHub Copilot CLI | `~/.copilot/session-state/` |
+| Claude Code | `~/.claude/projects/` |
+| OpenAI Codex CLI | `~/.codex/sessions/` |
 
 ## Install
 
+**Homebrew**
 ```bash
-# Homebrew (macOS/Linux)
-brew tap OriginalMHV/tap
-brew install recall
+brew tap OriginalMHV/tap && brew install recall
+```
 
-# Cargo
+**Cargo**
+```bash
 cargo install recall-cli
+```
 
-# Shell (macOS/Linux)
+**Shell script**
+```bash
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/OriginalMHV/recall/releases/latest/download/recall-cli-installer.sh | sh
+```
 
-# From source
+**From source**
+```bash
 git clone https://github.com/OriginalMHV/recall.git
 cd recall && cargo install --path .
 ```
 
-Requires Rust >= 1.85 for building from source.
+Building from source requires Rust 1.85+.
 
 ## Usage
 
 ```bash
-# launch the TUI
-recall
-
-# list sessions as plain text
-recall --list
-
-# get session count
-recall --count
+recall              # launch the TUI
+recall --list       # plain text session list
+recall --count      # session count
+recall --provider copilot   # filter by provider
 ```
 
-### Keybindings
+## Keybindings
 
 | Key | Action |
 |-----|--------|
-| `↑` `↓` / `j` `k` | Navigate sessions |
+| `j` / `k` or arrows | Navigate sessions |
 | `Enter` | Resume selected session |
-| `/` | Search sessions |
-| `d` | Delete session (with confirmation) |
-| `Shift+↑↓` / `←` `→` | Scroll preview panel |
-| `Tab` | Cycle provider filter (All → Copilot → Claude → Codex → All) |
-| `g` / `G` | Jump to first / last session |
+| `/` | Search |
+| `d` | Delete (with confirmation) |
+| `Tab` | Cycle provider filter |
+| `Shift+arrows` or `Left`/`Right` | Scroll preview |
+| `g` / `G` | Jump to first / last |
 | `q` / `Esc` | Quit |
 
-### Search mode
-
-| Key | Action |
-|-----|--------|
-| Type | Filter sessions |
-| `Enter` / `Esc` | Exit search |
-| `Ctrl+U` | Clear search |
+In search mode, type to filter. `Enter` or `Esc` to exit, `Ctrl+U` to clear.
 
 ## How it works
 
-Recall uses a provider-based architecture to discover sessions from multiple CLI tools:
+Recall discovers sessions through a provider-based architecture. Each provider reads from its tool's local storage:
 
-- **Copilot CLI**: reads from `~/.copilot/session-state/`, parsing `workspace.yaml` for metadata and `events.jsonl` for conversation content. Checkpoint history is pulled from `checkpoints/index.md`.
-- **Claude Code**: reads from `~/.claude/projects/`, parsing JSONL conversation files for session metadata, messages, and tool usage.
-- **Codex CLI**: reads from `~/.codex/sessions/` (and `~/.codex/archived_sessions/`), walking nested `YYYY/MM/DD` date directories for `rollout-*.jsonl` session files. Parses the session meta line for identity and subsequent response items for user messages.
+- **Copilot CLI** parses `workspace.yaml` for metadata and `events.jsonl` for conversation content. Checkpoint history comes from `checkpoints/index.md`.
+- **Claude Code** parses JSONL conversation files under project directories for messages and metadata.
+- **Codex CLI** walks `YYYY/MM/DD` date directories for `rollout-*.jsonl` session files, reading the session meta line and user messages from response items.
 
 Nothing is modified unless you explicitly delete a session. Recall is read-only by default.
 
-When you hit Enter on a session, Recall exits cleanly and launches the appropriate CLI tool to resume the session.
+Pressing Enter exits the TUI and launches the appropriate CLI tool (`copilot --resume` or `codex --resume`) to pick up where you left off.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
-
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:54C6EB,50:048A81,100:2E4057&height=120&section=footer&reversal=true" width="100%" alt="" />
+MIT
