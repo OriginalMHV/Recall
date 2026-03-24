@@ -13,7 +13,7 @@ use recall_cli::app::{App, Mode, ProviderFilter};
 use recall_cli::{providers, session, ui};
 
 #[derive(Parser)]
-#[command(name = "recall", about = "TUI session browser for AI CLI tools")]
+#[command(name = "recall", about = "TUI session browser for Copilot CLI, Claude Code, and more")]
 struct Cli {
     /// List sessions as plain text (no TUI)
     #[arg(long)]
@@ -62,7 +62,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     if sessions.is_empty() {
-        println!("No AI CLI sessions found.");
+        println!("No CLI sessions found.");
         println!(
             "Supported: ~/.copilot/session-state/ (Copilot), ~/.claude/projects/ (Claude Code)"
         );

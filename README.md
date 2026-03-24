@@ -11,9 +11,9 @@
 
 ## What is Recall?
 
-A TUI session browser for AI coding assistants — [GitHub Copilot CLI](https://github.com/github/copilot-cli), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), and more. Browse, search, preview, and resume your past sessions across providers without memorizing UUIDs or scrolling through `/resume`.
+A TUI session browser for [GitHub Copilot CLI](https://github.com/github/copilot-cli) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Browse, search, preview, and resume your past sessions without memorizing UUIDs or scrolling through `/resume`.
 
-Think of it as the conversation sidebar that ChatGPT and Claude have — but for your terminal.
+The conversation sidebar your terminal never had.
 
 ### Features
 
@@ -21,7 +21,7 @@ Think of it as the conversation sidebar that ChatGPT and Claude have — but for
 |---------|-------------|
 | **Multi-provider** | Supports Copilot CLI and Claude Code sessions in one unified view |
 | **Session list** | All sessions sorted by last activity, with summary and age |
-| **Live preview** | Checkpoints, user messages, completed tasks — at a glance |
+| **Live preview** | Checkpoints, user messages, completed tasks at a glance |
 | **Search** | Fuzzy filter across summaries, directories, and message content |
 | **Resume** | Press Enter to launch `copilot --resume <id>` directly |
 | **Delete** | Clean up old sessions with confirmation |
@@ -90,7 +90,7 @@ recall --count
 
 ## How it works
 
-Recall uses a multi-provider architecture to discover sessions across AI coding assistants:
+Recall uses a provider-based architecture to discover sessions from multiple CLI tools:
 
 - **Copilot CLI**: reads from `~/.copilot/session-state/`, parsing `workspace.yaml` for metadata and `events.jsonl` for conversation content. Checkpoint history is pulled from `checkpoints/index.md`.
 - **Claude Code**: reads from `~/.claude/projects/`, parsing JSONL conversation files for session metadata, messages, and tool usage.
