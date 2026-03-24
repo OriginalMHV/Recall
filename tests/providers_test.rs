@@ -3,6 +3,7 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use recall_cli::providers::claude::ClaudeCodeProvider;
+use recall_cli::providers::codex::CodexProvider;
 use recall_cli::providers::copilot::CopilotProvider;
 
 // ─── Copilot Provider ───
@@ -316,6 +317,159 @@ fn test_claude_extracts_timestamps() {
 
 fn parse_dt(s: &str) -> DateTime<Utc> {
     DateTime::parse_from_rfc3339(s).unwrap().with_timezone(&Utc)
+}
+
+// ─── Codex CLI Provider ───
+
+fn codex_meta_line(id: &str, cwd: &str, ts: &str) -> String {
+    format!(
+        r#"{{"timestamp":"{ts}","type":"session_meta","payload":{{"id":"{id}","cwd":"{cwd}","timestamp":"{ts}","originator":"cli","cli_version":"0.1.0","source":"cli"}}}}"#,
+    )
+}
+
+fn codex_user_item(text: &str, ts: &str) -> String {
+    format!(
+        r#"{{"timestamp":"{ts}","type":"response_item","payload":{{"id":"item-u","role":"user","content":[{{"type":"input_text","text":"{text}"}}]}}}}"#,
+    )
+}
+
+fn codex_assistant_item(text: &str, ts: &str) -> String {
+    format!(
+        r#"{{"timestamp":"{ts}","type":"response_item","payload":{{"id":"item-a","role":"assistant","content":[{{"type":"output_text","text":"{text}"}}]}}}}"#,
+    )
+}
+
+#[test]
+fn test_codex_loads_valid_session() {
+    let dir = tempfile::tempdir().unwrap();
+    let session_file = dir.path().join("rollout-2026-03-20T10-00-00-abc123.jsonl");
+
+    let content = format!(
+        "{}\n{}\n{}",
+        codex_meta_line(
+            "codex-test-123",
+            "/Users/test/project",
+            "2026-03-20T10:00:00Z"
+        ),
+        codex_user_item("Fix the bug in main.rs", "2026-03-20T10:01:00Z"),
+        codex_assistant_item("I'll fix that bug.", "2026-03-20T10:02:00Z"),
+    );
+    fs::write(&session_file, content).unwrap();
+
+    let session = CodexProvider::load_session(&session_file).expect("should load session");
+    assert_eq!(session.id, "codex-test-123");
+    assert_eq!(session.cwd, "/Users/test/project");
+    assert_eq!(session.summary, "Fix the bug in main.rs");
+    assert_eq!(session.user_messages.len(), 1);
+    assert_eq!(session.user_messages[0], "Fix the bug in main.rs");
+    assert_eq!(session.created_at, parse_dt("2026-03-20T10:00:00Z"));
+    assert_eq!(session.updated_at, parse_dt("2026-03-20T10:02:00Z"));
+}
+
+#[test]
+fn test_codex_skips_non_rollout_files() {
+    let dir = tempfile::tempdir().unwrap();
+
+    // Valid rollout file
+    let valid = dir.path().join("rollout-2026-03-20T10-00-00-abc.jsonl");
+    let content = format!(
+        "{}\n{}",
+        codex_meta_line("valid-1", "/test", "2026-03-20T10:00:00Z"),
+        codex_user_item("Hello", "2026-03-20T10:01:00Z"),
+    );
+    fs::write(&valid, content).unwrap();
+
+    // Non-rollout files that should be skipped
+    fs::write(
+        dir.path().join("other-file.jsonl"),
+        codex_meta_line("skip-1", "/test", "2026-03-20T10:00:00Z"),
+    )
+    .unwrap();
+    fs::write(
+        dir.path().join("session_index.jsonl"),
+        r#"{"thread_id":"t1","name":"test"}"#,
+    )
+    .unwrap();
+
+    let sessions = CodexProvider::discover_in(dir.path());
+    assert_eq!(sessions.len(), 1);
+    assert_eq!(sessions[0].id, "valid-1");
+}
+
+#[test]
+fn test_codex_handles_malformed_jsonl() {
+    let dir = tempfile::tempdir().unwrap();
+    let session_file = dir.path().join("rollout-2026-03-20T10-00-00-bad.jsonl");
+
+    let content = format!(
+        "not json at all\n{}\nmore garbage\n{}\nalso broken",
+        codex_meta_line("mal-1", "/test", "2026-03-20T10:00:00Z"),
+        codex_user_item("Valid message", "2026-03-20T10:01:00Z"),
+    );
+    fs::write(&session_file, content).unwrap();
+
+    let session = CodexProvider::load_session(&session_file).expect("should load session");
+    assert_eq!(session.user_messages.len(), 1);
+    assert_eq!(session.user_messages[0], "Valid message");
+}
+
+#[test]
+fn test_codex_strips_user_message_prefix() {
+    let dir = tempfile::tempdir().unwrap();
+    let session_file = dir.path().join("rollout-2026-03-20T10-00-00-pfx.jsonl");
+
+    let content = format!(
+        "{}\n{}",
+        codex_meta_line("pfx-1", "/test", "2026-03-20T10:00:00Z"),
+        codex_user_item(
+            "## My request for Codex: actual request",
+            "2026-03-20T10:01:00Z"
+        ),
+    );
+    fs::write(&session_file, content).unwrap();
+
+    let session = CodexProvider::load_session(&session_file).expect("should load session");
+    assert_eq!(session.user_messages[0], "actual request");
+    assert_eq!(session.summary, "actual request");
+}
+
+#[test]
+fn test_codex_derives_summary_from_first_message() {
+    let dir = tempfile::tempdir().unwrap();
+    let session_file = dir.path().join("rollout-2026-03-20T10-00-00-long.jsonl");
+
+    let long_message = "B".repeat(100);
+    let content = format!(
+        "{}\n{}",
+        codex_meta_line("long-1", "/test", "2026-03-20T10:00:00Z"),
+        codex_user_item(&long_message, "2026-03-20T10:01:00Z"),
+    );
+    fs::write(&session_file, content).unwrap();
+
+    let session = CodexProvider::load_session(&session_file).expect("should load session");
+    // Summary = first 80 chars + ellipsis
+    assert_eq!(session.summary.chars().count(), 81);
+    assert!(session.summary.ends_with('\u{2026}'));
+    assert!(session.summary.starts_with("BBBB"));
+}
+
+#[test]
+fn test_codex_discovers_nested_date_dirs() {
+    let dir = tempfile::tempdir().unwrap();
+    let nested = dir.path().join("2026").join("03").join("20");
+    fs::create_dir_all(&nested).unwrap();
+
+    let session_file = nested.join("rollout-2026-03-20T10-00-00-nest.jsonl");
+    let content = format!(
+        "{}\n{}",
+        codex_meta_line("nest-1", "/test", "2026-03-20T10:00:00Z"),
+        codex_user_item("Nested session", "2026-03-20T10:01:00Z"),
+    );
+    fs::write(&session_file, content).unwrap();
+
+    let sessions = CodexProvider::discover_in(dir.path());
+    assert_eq!(sessions.len(), 1);
+    assert_eq!(sessions[0].id, "nest-1");
 }
 
 // ─── Extra edge cases ───

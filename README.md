@@ -11,7 +11,7 @@
 
 ## What is Recall?
 
-A TUI session browser for [GitHub Copilot CLI](https://github.com/github/copilot-cli) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Browse, search, preview, and resume your past sessions without memorizing UUIDs or scrolling through `/resume`.
+A TUI session browser for [GitHub Copilot CLI](https://github.com/github/copilot-cli), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), and [OpenAI Codex CLI](https://github.com/openai/codex). Browse, search, preview, and resume your past sessions without memorizing UUIDs or scrolling through `/resume`.
 
 The conversation sidebar your terminal never had.
 
@@ -19,11 +19,11 @@ The conversation sidebar your terminal never had.
 
 | Feature | Description |
 |---------|-------------|
-| **Multi-provider** | Supports Copilot CLI and Claude Code sessions in one unified view |
+| **Multi-provider** | Supports Copilot CLI, Claude Code, and Codex CLI sessions in one unified view |
 | **Session list** | All sessions sorted by last activity, with summary and age |
 | **Live preview** | Checkpoints, user messages, completed tasks at a glance |
 | **Search** | Fuzzy filter across summaries, directories, and message content |
-| **Resume** | Press Enter to launch `copilot --resume <id>` directly |
+| **Resume** | Press Enter to launch `copilot --resume <id>` or `codex --resume <id>` directly |
 | **Delete** | Clean up old sessions with confirmation |
 | **CLI mode** | `--list` and `--count` flags for scripting |
 
@@ -33,6 +33,7 @@ The conversation sidebar your terminal never had.
 |----------|--------|------------------|
 | GitHub Copilot CLI | ✅ Supported | `~/.copilot/session-state/` |
 | Claude Code | ✅ Supported | `~/.claude/projects/` |
+| OpenAI Codex CLI | ✅ Supported | `~/.codex/sessions/` |
 
 ## Install
 
@@ -76,7 +77,7 @@ recall --count
 | `/` | Search sessions |
 | `d` | Delete session (with confirmation) |
 | `Shift+↑↓` / `←` `→` | Scroll preview panel |
-| `Tab` | Cycle provider filter (All → Copilot → Claude → All) |
+| `Tab` | Cycle provider filter (All → Copilot → Claude → Codex → All) |
 | `g` / `G` | Jump to first / last session |
 | `q` / `Esc` | Quit |
 
@@ -94,6 +95,7 @@ Recall uses a provider-based architecture to discover sessions from multiple CLI
 
 - **Copilot CLI**: reads from `~/.copilot/session-state/`, parsing `workspace.yaml` for metadata and `events.jsonl` for conversation content. Checkpoint history is pulled from `checkpoints/index.md`.
 - **Claude Code**: reads from `~/.claude/projects/`, parsing JSONL conversation files for session metadata, messages, and tool usage.
+- **Codex CLI**: reads from `~/.codex/sessions/` (and `~/.codex/archived_sessions/`), walking nested `YYYY/MM/DD` date directories for `rollout-*.jsonl` session files. Parses the session meta line for identity and subsequent response items for user messages.
 
 Nothing is modified unless you explicitly delete a session. Recall is read-only by default.
 

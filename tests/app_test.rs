@@ -33,6 +33,9 @@ fn test_provider_filter_cycle() {
     assert_eq!(app.provider_filter, ProviderFilter::Claude);
 
     app.cycle_provider_filter();
+    assert_eq!(app.provider_filter, ProviderFilter::Codex);
+
+    app.cycle_provider_filter();
     assert_eq!(app.provider_filter, ProviderFilter::All);
 }
 

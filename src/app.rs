@@ -5,6 +5,7 @@ pub enum ProviderFilter {
     All,
     Copilot,
     Claude,
+    Codex,
 }
 
 impl ProviderFilter {
@@ -13,6 +14,7 @@ impl ProviderFilter {
             Self::All => "All",
             Self::Copilot => "Copilot",
             Self::Claude => "Claude Code",
+            Self::Codex => "Codex CLI",
         }
     }
 
@@ -21,6 +23,7 @@ impl ProviderFilter {
             Self::All => true,
             Self::Copilot => provider == "Copilot",
             Self::Claude => provider == "Claude Code",
+            Self::Codex => provider == "Codex CLI",
         }
     }
 
@@ -28,7 +31,8 @@ impl ProviderFilter {
         match self {
             Self::All => Self::Copilot,
             Self::Copilot => Self::Claude,
-            Self::Claude => Self::All,
+            Self::Claude => Self::Codex,
+            Self::Codex => Self::All,
         }
     }
 }

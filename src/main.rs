@@ -26,7 +26,7 @@ struct Cli {
     #[arg(long)]
     count: bool,
 
-    /// Filter by provider name (copilot, claude)
+    /// Filter by provider name (copilot, claude, codex)
     #[arg(long)]
     provider: Option<String>,
 }
@@ -67,7 +67,7 @@ fn main() -> anyhow::Result<()> {
     if sessions.is_empty() {
         println!("No CLI sessions found.");
         println!(
-            "Supported: ~/.copilot/session-state/ (Copilot), ~/.claude/projects/ (Claude Code)"
+            "Supported: ~/.copilot/session-state/ (Copilot), ~/.claude/projects/ (Claude Code), ~/.codex/sessions/ (Codex CLI)"
         );
         return Ok(());
     }
@@ -78,6 +78,8 @@ fn main() -> anyhow::Result<()> {
             ProviderFilter::Claude
         } else if lower.contains("copilot") {
             ProviderFilter::Copilot
+        } else if lower.contains("codex") {
+            ProviderFilter::Codex
         } else {
             ProviderFilter::All
         }
@@ -89,6 +91,12 @@ fn main() -> anyhow::Result<()> {
         match provider.as_str() {
             "Copilot" => {
                 let status = std::process::Command::new("copilot")
+                    .args(["--resume", &session_id])
+                    .status()?;
+                std::process::exit(status.code().unwrap_or(1));
+            }
+            "Codex CLI" => {
+                let status = std::process::Command::new("codex")
                     .args(["--resume", &session_id])
                     .status()?;
                 std::process::exit(status.code().unwrap_or(1));

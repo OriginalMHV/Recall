@@ -1,4 +1,5 @@
 pub mod claude;
+pub mod codex;
 pub mod copilot;
 
 use crate::session::Session;
@@ -12,6 +13,7 @@ pub fn load_all_sessions() -> Vec<Session> {
     let providers: Vec<Box<dyn Provider>> = vec![
         Box::new(copilot::CopilotProvider),
         Box::new(claude::ClaudeCodeProvider),
+        Box::new(codex::CodexProvider),
     ];
 
     let mut sessions: Vec<Session> = providers

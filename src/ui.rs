@@ -13,6 +13,7 @@ const OLIVE: Color = Color::Rgb(107, 142, 35);
 const BURNT: Color = Color::Rgb(204, 85, 0);
 const GOLD: Color = Color::Rgb(218, 165, 32);
 const CLAUDE: Color = Color::Rgb(204, 120, 50);
+const CODEX: Color = Color::Rgb(0, 166, 125);
 const DIM: Color = Color::Rgb(120, 120, 120);
 const SURFACE: Color = Color::Rgb(30, 30, 30);
 
@@ -83,15 +84,15 @@ fn draw_session_list(f: &mut Frame, app: &App, area: Rect) {
 
             let is_selected = display_idx == app.selected;
 
-            let provider_color = if session.provider == "Claude Code" {
-                CLAUDE
-            } else {
-                OLIVE
+            let provider_color = match session.provider.as_str() {
+                "Claude Code" => CLAUDE,
+                "Codex CLI" => CODEX,
+                _ => OLIVE,
             };
-            let provider_badge = if session.provider == "Claude Code" {
-                "◆ "
-            } else {
-                "● "
+            let provider_badge = match session.provider.as_str() {
+                "Claude Code" => "◆ ",
+                "Codex CLI" => "⬡ ",
+                _ => "● ",
             };
 
             let title_style = if is_selected {
