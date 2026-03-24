@@ -289,7 +289,7 @@ fn centered_rect(percent_x: u16, height: u16, area: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
-fn shorten_path(path: &str, max: usize) -> String {
+pub fn shorten_path(path: &str, max: usize) -> String {
     if path.chars().count() <= max {
         return path.to_string();
     }

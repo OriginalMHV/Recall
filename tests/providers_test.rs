@@ -527,3 +527,287 @@ fn test_claude_file_stem_as_fallback_id() {
         ClaudeCodeProvider::load_session(Path::new(&session_file)).expect("should load session");
     assert_eq!(session.id, "my-fallback-id");
 }
+
+// ─── Codex: compacted items ───
+
+#[test]
+fn test_codex_ignores_compacted_items() {
+    let dir = tempfile::tempdir().unwrap();
+    let session_file = dir.path().join("rollout-2026-03-20T10-00-00-compact.jsonl");
+
+    let compacted_item = r#"{"timestamp":"2026-03-20T10:01:30Z","type":"response_item","payload":{"id":"item-c","role":"user","content":[{"type":"compacted","text":"old compacted data"}]}}"#;
+    let content = format!(
+        "{}\n{}\n{}\n{}",
+        codex_meta_line("compact-1", "/test", "2026-03-20T10:00:00Z"),
+        codex_user_item("Real message", "2026-03-20T10:01:00Z"),
+        compacted_item,
+        codex_assistant_item("Response", "2026-03-20T10:02:00Z"),
+    );
+    fs::write(&session_file, content).unwrap();
+
+    let session = CodexProvider::load_session(&session_file).expect("should load session");
+    // Only the real user message, not the compacted item
+    assert_eq!(session.user_messages.len(), 1);
+    assert_eq!(session.user_messages[0], "Real message");
+}
+
+#[test]
+fn test_codex_empty_content_array() {
+    let dir = tempfile::tempdir().unwrap();
+    let session_file = dir.path().join("rollout-2026-03-20T10-00-00-empty.jsonl");
+
+    let empty_content = r#"{"timestamp":"2026-03-20T10:01:30Z","type":"response_item","payload":{"id":"item-e","role":"user","content":[]}}"#;
+    let content = format!(
+        "{}\n{}\n{}",
+        codex_meta_line("empty-c-1", "/test", "2026-03-20T10:00:00Z"),
+        codex_user_item("Real message", "2026-03-20T10:01:00Z"),
+        empty_content,
+    );
+    fs::write(&session_file, content).unwrap();
+
+    let session = CodexProvider::load_session(&session_file).expect("should load session");
+    assert_eq!(session.user_messages.len(), 1);
+}
+
+#[test]
+fn test_codex_discovers_in_archived_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    let archived = dir.path().join("archived_sessions");
+    fs::create_dir_all(&archived).unwrap();
+
+    let session_file = archived.join("rollout-2026-03-20T10-00-00-arch.jsonl");
+    let content = format!(
+        "{}\n{}",
+        codex_meta_line("arch-1", "/test", "2026-03-20T10:00:00Z"),
+        codex_user_item("Archived session", "2026-03-20T10:01:00Z"),
+    );
+    fs::write(&session_file, content).unwrap();
+
+    let sessions = CodexProvider::discover_in(dir.path());
+    // walk_dir recurses, so it should find the file inside archived_sessions
+    assert_eq!(sessions.len(), 1);
+    assert_eq!(sessions[0].id, "arch-1");
+}
+
+#[test]
+fn test_codex_session_without_meta() {
+    let dir = tempfile::tempdir().unwrap();
+    let session_file = dir.path().join("rollout-2026-03-20T10-00-00-nometa.jsonl");
+
+    // No session_meta line — just a user item
+    let content = codex_user_item("Hello with no meta", "2026-03-20T10:01:00Z");
+    fs::write(&session_file, content).unwrap();
+
+    let session = CodexProvider::load_session(&session_file).expect("should load session");
+    // ID falls back to file stem
+    assert_eq!(session.id, "rollout-2026-03-20T10-00-00-nometa");
+    assert_eq!(session.user_messages[0], "Hello with no meta");
+}
+
+// ─── Claude: multiple project directories ───
+
+#[test]
+fn test_claude_discovers_across_multiple_projects() {
+    let dir = tempfile::tempdir().unwrap();
+
+    let project_a = dir.path().join("project-a");
+    let project_b = dir.path().join("project-b");
+    fs::create_dir_all(&project_a).unwrap();
+    fs::create_dir_all(&project_b).unwrap();
+
+    fs::write(
+        project_a.join("sess-a1.jsonl"),
+        claude_user_event("sa1", "/test/a", "Hello from A", "2026-03-20T10:00:00Z"),
+    )
+    .unwrap();
+    fs::write(
+        project_b.join("sess-b1.jsonl"),
+        claude_user_event("sb1", "/test/b", "Hello from B", "2026-03-20T11:00:00Z"),
+    )
+    .unwrap();
+    fs::write(
+        project_b.join("sess-b2.jsonl"),
+        claude_user_event("sb2", "/test/b", "Another B", "2026-03-20T12:00:00Z"),
+    )
+    .unwrap();
+
+    let sessions = ClaudeCodeProvider::discover_in(dir.path());
+    assert_eq!(sessions.len(), 3);
+
+    let ids: Vec<&str> = sessions.iter().map(|s| s.id.as_str()).collect();
+    assert!(ids.contains(&"sa1"));
+    assert!(ids.contains(&"sb1"));
+    assert!(ids.contains(&"sb2"));
+}
+
+#[test]
+fn test_claude_multiple_user_messages() {
+    let dir = tempfile::tempdir().unwrap();
+    let session_file = dir.path().join("multi-msg.jsonl");
+
+    let content = format!(
+        "{}\n{}\n{}\n{}",
+        claude_user_event("mm-1", "/test", "First question", "2026-03-20T10:00:00Z"),
+        claude_assistant_event("mm-1", "/test", "First answer", "2026-03-20T10:01:00Z"),
+        claude_user_event("mm-1", "/test", "Second question", "2026-03-20T10:02:00Z"),
+        claude_assistant_event("mm-1", "/test", "Second answer", "2026-03-20T10:03:00Z"),
+    );
+    fs::write(&session_file, content).unwrap();
+
+    let session = ClaudeCodeProvider::load_session(&session_file).expect("should load session");
+    assert_eq!(session.user_messages.len(), 2);
+    assert_eq!(session.summary, "First question"); // summary = first message
+}
+
+#[test]
+fn test_claude_ignores_non_jsonl_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let project = dir.path().join("my-project");
+    fs::create_dir_all(&project).unwrap();
+
+    // Valid jsonl
+    fs::write(
+        project.join("valid.jsonl"),
+        claude_user_event("v1", "/test", "Valid", "2026-03-20T10:00:00Z"),
+    )
+    .unwrap();
+
+    // Non-jsonl files
+    fs::write(project.join("notes.txt"), "some notes").unwrap();
+    fs::write(project.join("data.json"), "{}").unwrap();
+
+    let sessions = ClaudeCodeProvider::discover_in(dir.path());
+    assert_eq!(sessions.len(), 1);
+}
+
+// ─── Copilot: large events file with truncation ───
+
+#[test]
+fn test_copilot_truncates_long_messages() {
+    let dir = tempfile::tempdir().unwrap();
+    let session_dir = dir.path().join("long-msg-session");
+    fs::create_dir_all(&session_dir).unwrap();
+
+    fs::write(
+        session_dir.join("workspace.yaml"),
+        "\
+id: long-msg-session
+summary: Long Message Test
+created_at: 2026-03-20T10:00:00Z
+updated_at: 2026-03-20T12:00:00Z
+",
+    )
+    .unwrap();
+
+    let long_content = "X".repeat(500);
+    let events = format!(
+        r#"{{"type":"user.message","data":{{"content":"{long_content}"}},"id":"evt1","timestamp":"2026-03-20T10:00:00Z"}}"#,
+    );
+    fs::write(session_dir.join("events.jsonl"), events).unwrap();
+
+    let session = CopilotProvider::load_session(&session_dir).expect("should load session");
+    assert_eq!(session.user_messages.len(), 1);
+    // truncate(msg, 200) → 200 chars + "…" = 201 chars
+    assert_eq!(session.user_messages[0].chars().count(), 201);
+    assert!(session.user_messages[0].ends_with('…'));
+}
+
+#[test]
+fn test_copilot_multiple_messages_and_task_summaries() {
+    let dir = tempfile::tempdir().unwrap();
+    let session_dir = dir.path().join("multi-session");
+    fs::create_dir_all(&session_dir).unwrap();
+
+    fs::write(
+        session_dir.join("workspace.yaml"),
+        "\
+id: multi-session
+summary: Multi Event Test
+created_at: 2026-03-20T10:00:00Z
+updated_at: 2026-03-20T12:00:00Z
+",
+    )
+    .unwrap();
+
+    let events = "\
+{\"type\":\"user.message\",\"data\":{\"content\":\"First request\"},\"id\":\"evt1\",\"timestamp\":\"2026-03-20T10:00:00Z\"}\n\
+{\"type\":\"session.task_complete\",\"data\":{\"summary\":\"Task 1 done\"},\"id\":\"evt2\",\"timestamp\":\"2026-03-20T10:30:00Z\"}\n\
+{\"type\":\"user.message\",\"data\":{\"content\":\"Second request\"},\"id\":\"evt3\",\"timestamp\":\"2026-03-20T11:00:00Z\"}\n\
+{\"type\":\"session.task_complete\",\"data\":{\"summary\":\"Task 2 done\"},\"id\":\"evt4\",\"timestamp\":\"2026-03-20T11:30:00Z\"}";
+    fs::write(session_dir.join("events.jsonl"), events).unwrap();
+
+    let session = CopilotProvider::load_session(&session_dir).expect("should load session");
+    assert_eq!(session.user_messages.len(), 2);
+    assert_eq!(session.task_summaries.len(), 2);
+    assert_eq!(session.user_messages[0], "First request");
+    assert_eq!(session.user_messages[1], "Second request");
+    assert_eq!(session.task_summaries[0], "Task 1 done");
+    assert_eq!(session.task_summaries[1], "Task 2 done");
+}
+
+#[test]
+fn test_copilot_empty_checkpoints_index() {
+    let dir = tempfile::tempdir().unwrap();
+    let session_dir = dir.path().join("empty-cp-session");
+    fs::create_dir_all(session_dir.join("checkpoints")).unwrap();
+
+    fs::write(
+        session_dir.join("workspace.yaml"),
+        "\
+id: empty-cp-session
+summary: Empty Checkpoints
+created_at: 2026-03-20T10:00:00Z
+updated_at: 2026-03-20T12:00:00Z
+",
+    )
+    .unwrap();
+
+    // index.md with just the header, no data rows
+    fs::write(
+        session_dir.join("checkpoints").join("index.md"),
+        "\
+| # | Title | Timestamp |
+|---|-------|-----------|
+",
+    )
+    .unwrap();
+
+    let session = CopilotProvider::load_session(&session_dir).expect("should load session");
+    assert!(session.checkpoints.is_empty());
+}
+
+// ─── Cross-provider: discover_in with empty directories ───
+
+#[test]
+fn test_codex_discover_empty_dir() {
+    let dir = tempfile::tempdir().unwrap();
+    let sessions = CodexProvider::discover_in(dir.path());
+    assert!(sessions.is_empty());
+}
+
+#[test]
+fn test_claude_discover_empty_dir() {
+    let dir = tempfile::tempdir().unwrap();
+    let sessions = ClaudeCodeProvider::discover_in(dir.path());
+    assert!(sessions.is_empty());
+}
+
+#[test]
+fn test_codex_skips_empty_sessions() {
+    let dir = tempfile::tempdir().unwrap();
+    let session_file = dir.path().join("rollout-2026-03-20T10-00-00-nousers.jsonl");
+
+    // Only meta + assistant item, no user messages
+    let content = format!(
+        "{}\n{}",
+        codex_meta_line("nousers-1", "/test", "2026-03-20T10:00:00Z"),
+        codex_assistant_item("Only assistant message", "2026-03-20T10:01:00Z"),
+    );
+    fs::write(&session_file, content).unwrap();
+
+    let session = CodexProvider::load_session(&session_file);
+    assert!(
+        session.is_none(),
+        "session with no user messages should be skipped"
+    );
+}
