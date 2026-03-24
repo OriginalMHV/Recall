@@ -44,7 +44,7 @@ pub struct App {
     pub provider_filter: ProviderFilter,
     pub confirm_delete: bool,
     pub should_quit: bool,
-    pub resume_session: Option<String>,
+    pub resume_session: Option<(String, String)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,7 +103,7 @@ impl App {
 
     pub fn resume_selected(&mut self) {
         if let Some(session) = self.selected_session() {
-            self.resume_session = Some(session.id.clone());
+            self.resume_session = Some((session.id.clone(), session.provider.clone()));
             self.should_quit = true;
         }
     }

@@ -13,7 +13,10 @@ use recall_cli::app::{App, Mode, ProviderFilter};
 use recall_cli::{providers, session, ui};
 
 #[derive(Parser)]
-#[command(name = "recall", about = "TUI session browser for Copilot CLI, Claude Code, and more")]
+#[command(
+    name = "recall",
+    about = "TUI session browser for Copilot CLI, Claude Code, and more"
+)]
 struct Cli {
     /// List sessions as plain text (no TUI)
     #[arg(long)]
@@ -82,12 +85,20 @@ fn main() -> anyhow::Result<()> {
 
     let resume_id = run_tui(sessions, provider_filter)?;
 
-    if let Some(session_id) = resume_id {
-        println!("Resuming session: {session_id}");
-        let status = std::process::Command::new("copilot")
-            .args(["--resume", &session_id])
-            .status()?;
-        std::process::exit(status.code().unwrap_or(1));
+    if let Some((session_id, provider)) = resume_id {
+        match provider.as_str() {
+            "Copilot" => {
+                let status = std::process::Command::new("copilot")
+                    .args(["--resume", &session_id])
+                    .status()?;
+                std::process::exit(status.code().unwrap_or(1));
+            }
+            _ => {
+                println!("Session: {session_id}");
+                println!("Provider: {provider}");
+                println!("Resume manually in the appropriate tool.");
+            }
+        }
     }
 
     Ok(())
@@ -96,7 +107,7 @@ fn main() -> anyhow::Result<()> {
 fn run_tui(
     sessions: Vec<session::Session>,
     provider_filter: Option<ProviderFilter>,
-) -> anyhow::Result<Option<String>> {
+) -> anyhow::Result<Option<(String, String)>> {
     enable_raw_mode()?;
     io::stdout().execute(EnterAlternateScreen)?;
 

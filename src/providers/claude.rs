@@ -1,3 +1,4 @@
+use std::io::BufRead;
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
@@ -14,7 +15,8 @@ impl ClaudeCodeProvider {
     }
 
     pub fn load_session(path: &std::path::Path) -> Option<Session> {
-        let content = std::fs::read_to_string(path).ok()?;
+        let file = std::fs::File::open(path).ok()?;
+        let reader = std::io::BufReader::new(file);
 
         let mut session_id = None;
         let mut cwd = None;
@@ -23,8 +25,11 @@ impl ClaudeCodeProvider {
         let mut first_timestamp: Option<DateTime<Utc>> = None;
         let mut last_timestamp: Option<DateTime<Utc>> = None;
 
-        for line in content.lines() {
-            let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+        for line in reader.lines() {
+            let Ok(line) = line else {
+                continue;
+            };
+            let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) else {
                 continue;
             };
 

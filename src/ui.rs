@@ -7,7 +7,7 @@ use ratatui::widgets::{
 };
 
 use crate::app::{App, LineStyle, Mode};
-use crate::session::human_time_ago;
+use crate::session::{human_time_ago, truncate};
 
 const OLIVE: Color = Color::Rgb(107, 142, 35);
 const BURNT: Color = Color::Rgb(204, 85, 0);
@@ -75,10 +75,10 @@ fn draw_session_list(f: &mut Frame, app: &App, area: Rect) {
                 session
                     .user_messages
                     .first()
-                    .map(|m| truncate_str(m, 40))
+                    .map(|m| truncate(m, 40))
                     .unwrap_or_else(|| "(empty)".to_string())
             } else {
-                truncate_str(&session.summary, 40)
+                truncate(&session.summary, 40)
             };
 
             let is_selected = display_idx == app.selected;
@@ -239,7 +239,7 @@ fn draw_delete_confirm(f: &mut Frame, app: &App) {
     let area = centered_rect(50, 7, f.area());
     f.render_widget(Clear, area);
 
-    let summary = truncate_str(&session.summary, 40);
+    let summary = truncate(&session.summary, 40);
     let text = vec![
         Line::from(""),
         Line::from(Span::styled(
@@ -289,24 +289,18 @@ fn centered_rect(percent_x: u16, height: u16, area: Rect) -> Rect {
 }
 
 fn shorten_path(path: &str, max: usize) -> String {
-    if path.len() <= max {
+    if path.chars().count() <= max {
         return path.to_string();
     }
     let home = dirs::home_dir()
         .map(|h| h.to_string_lossy().to_string())
         .unwrap_or_default();
     let shortened = path.replace(&home, "~");
-    if shortened.len() <= max {
+    let char_count = shortened.chars().count();
+    if char_count <= max {
         return shortened;
     }
-    format!("…{}", &shortened[shortened.len() - max + 1..])
-}
-
-fn truncate_str(s: &str, max: usize) -> String {
-    if s.chars().count() <= max {
-        s.to_string()
-    } else {
-        let truncated: String = s.chars().take(max).collect();
-        format!("{truncated}…")
-    }
+    let skip = char_count - max + 1;
+    let tail: String = shortened.chars().skip(skip).collect();
+    format!("…{tail}")
 }

@@ -1,3 +1,4 @@
+use std::io::BufRead;
 use std::path::PathBuf;
 
 use chrono::DateTime;
@@ -83,15 +84,19 @@ impl CopilotProvider {
 
     fn load_events(session_path: &std::path::Path) -> (Vec<String>, Vec<String>) {
         let events_path = session_path.join("events.jsonl");
-        let Ok(content) = std::fs::read_to_string(&events_path) else {
+        let Ok(file) = std::fs::File::open(&events_path) else {
             return (Vec::new(), Vec::new());
         };
+        let reader = std::io::BufReader::new(file);
 
         let mut user_messages = Vec::new();
         let mut task_summaries = Vec::new();
 
-        for line in content.lines() {
-            let Ok(event) = serde_json::from_str::<Event>(line) else {
+        for line in reader.lines() {
+            let Ok(line) = line else {
+                continue;
+            };
+            let Ok(event) = serde_json::from_str::<Event>(&line) else {
                 continue;
             };
 
