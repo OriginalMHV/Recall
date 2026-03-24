@@ -4,6 +4,16 @@
 
 [![Rust](https://img.shields.io/badge/Rust-048A81?style=for-the-badge&logo=rust&logoColor=E8F1F2&labelColor=1C1C1C)](https://rust-lang.org)
 [![License](https://img.shields.io/badge/License-MIT-2E4057?style=for-the-badge&labelColor=1C1C1C)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/OriginalMHV/recall/ci.yml?style=for-the-badge&label=CI&labelColor=1C1C1C&color=048A81)](https://github.com/OriginalMHV/Recall/actions)
+[![Crates.io](https://img.shields.io/crates/v/recall-cli?style=for-the-badge&labelColor=1C1C1C&color=048A81)](https://crates.io/crates/recall-cli)
+[![Downloads](https://img.shields.io/crates/d/recall-cli?style=for-the-badge&label=Downloads&labelColor=1C1C1C&color=54C6EB)](https://crates.io/crates/recall-cli)
+
+[![Lines of Code](https://img.shields.io/badge/Lines_of_Code-2.2k-E8F1F2?style=for-the-badge&labelColor=1C1C1C)](https://github.com/OriginalMHV/Recall)
+[![Tests](https://img.shields.io/badge/Tests-40-048A81?style=for-the-badge&labelColor=1C1C1C)](https://github.com/OriginalMHV/Recall/actions)
+[![Providers](https://img.shields.io/badge/Providers-3-54C6EB?style=for-the-badge&labelColor=1C1C1C)](https://github.com/OriginalMHV/Recall)
+[![GitHub Release](https://img.shields.io/github/v/release/OriginalMHV/Recall?style=for-the-badge&labelColor=1C1C1C&color=2E4057)](https://github.com/OriginalMHV/Recall/releases/latest)
+
+[Install](#install) · [Usage](#usage) · [Providers](#supported-providers) · [Keybindings](#keybindings)
 
 </div>
 
